@@ -1,6 +1,4 @@
-Hello! I’m Md Sahidul Islam Sakib.
-
-Welcome to my personal website.
+Hello! I’m Md Sahidul Islam Sakib. Welcome to my Github.
 
 I’m a Computer Science & Engineering (CSE) student with a strong interest in technology, creativity, and continuous learning. This website is my personal space where I share my work, experiences, thoughts, and projects.
 

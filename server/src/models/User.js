@@ -8,11 +8,20 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Optional Email
     email: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
       lowercase: true,
+      trim: true,
+    },
+
+    // Optional Phone
+    phone: {
+      type: String,
+      unique: true,
+      sparse: true,
       trim: true,
     },
 
@@ -22,7 +31,7 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
-    avatar: {
+    profilePic: {
       type: String,
       default: "",
     },

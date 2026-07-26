@@ -23,3 +23,11 @@ export const getAllUsers = (token) => {
     },
   });
 };
+
+export const updateProfile = (data, token) => {
+  return api.put("/users/profile", data, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+};

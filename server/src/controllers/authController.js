@@ -1,36 +1,61 @@
 import bcrypt from "bcryptjs";
-import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+// ==========================
+// Register
+// ==========================
 export const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, phone, password } = req.body;
 
     // Validation
-    if (!name || !email || !password) {
+    if (!name || !password) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "Name and password are required",
       });
     }
-    
 
-    // Check existing user
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      return res.status(409).json({
+    if (!email && !phone) {
+      return res.status(400).json({
         success: false,
-        message: "Email already exists",
+        message: "Email or phone number is required",
       });
     }
 
-    // Hash password
+    // Check existing email
+    if (email) {
+      const existingEmail = await User.findOne({ email });
+
+      if (existingEmail) {
+        return res.status(409).json({
+          success: false,
+          message: "Email already exists",
+        });
+      }
+    }
+
+    // Check existing phone
+    if (phone) {
+      const existingPhone = await User.findOne({ phone });
+
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          message: "Phone number already exists",
+        });
+      }
+    }
+
+    // Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create User
     const user = await User.create({
       name,
-      email,
+      email: email || undefined,
+      phone: phone || undefined,
       password: hashedPassword,
     });
 
@@ -41,6 +66,7 @@ export const register = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
       },
     });
 
@@ -53,39 +79,49 @@ export const register = async (req, res) => {
     });
   }
 };
+
+// ==========================
+// Login (Email OR Phone)
+// ==========================
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { login, password } = req.body;
 
-    // Validation
-    if (!email || !password) {
+    if (!login || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Email/Phone and password are required",
       });
     }
 
-    // Find user
-    const user = await User.findOne({ email });
+    // Detect email or phone
+    const query = login.includes("@")
+      ? { email: login }
+      : { phone: login };
+
+    const user = await User.findOne(query);
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid credentials",
       });
     }
 
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Compare Password
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid credentials",
       });
     }
 
-    // Generate JWT
+    // JWT
     const token = jwt.sign(
       {
         id: user._id,
@@ -104,6 +140,8 @@ export const login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        profilePic: user.profilePic,
       },
     });
 

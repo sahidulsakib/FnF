@@ -4,12 +4,22 @@ import {
   getMessages,
 } from "../controllers/messageController.js";
 
+import authMiddleware from "../middleware/authMiddleware.js";
+
 const router = express.Router();
 
 // Send Message
-router.post("/", sendMessage);
+router.post(
+  "/",
+  authMiddleware,
+  sendMessage
+);
 
 // Get Messages of a Conversation
-router.get("/:conversationId", getMessages);
+router.get(
+  "/:conversationId",
+  authMiddleware,
+  getMessages
+);
 
 export default router;

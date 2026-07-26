@@ -1,14 +1,22 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
 import InputField from "../../components/common/InputField";
 import { registerUser } from "../../services/authService";
+
 const Register = () => {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
+
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -17,34 +25,53 @@ const Register = () => {
     });
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (formData.password !== formData.confirmPassword) {
-    alert("Passwords do not match");
-    return;
-  }
+    if (!formData.email && !formData.phone) {
+      toast.error("Email or Phone Number is required");
+      return;
+    }
 
-  try {
-    const res = await registerUser({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-    });
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
 
-    alert(res.data.message);
+    setLoading(true);
 
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    });
+    try {
+      const res = await registerUser({
+        name: formData.name,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        password: formData.password,
+      });
 
-  } catch (error) {
-    alert(error.response?.data?.message || "Registration failed");
-  }
-};
+      toast.success(
+        res.data.message || "Registration Successful 🎉"
+      );
+
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+      });
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
+
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Registration Failed"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="card w-full max-w-md bg-base-100 shadow-2xl">
@@ -54,11 +81,14 @@ const handleSubmit = async (e) => {
           Create Account
         </h2>
 
+        <p className="text-center text-sm opacity-70 mb-4">
+          Email or Phone Number is required
+        </p>
+
         <form
           onSubmit={handleSubmit}
           className="space-y-4"
         >
-
           <InputField
             name="name"
             placeholder="Full Name"
@@ -69,8 +99,16 @@ const handleSubmit = async (e) => {
           <InputField
             type="email"
             name="email"
-            placeholder="Email"
+            placeholder="Email (Optional)"
             value={formData.email}
+            onChange={handleChange}
+          />
+
+          <InputField
+            type="text"
+            name="phone"
+            placeholder="Phone Number (Optional)"
+            value={formData.phone}
             onChange={handleChange}
           />
 
@@ -90,10 +128,15 @@ const handleSubmit = async (e) => {
             onChange={handleChange}
           />
 
-          <button className="btn btn-primary w-full">
-            Create Account
+          <button
+            type="submit"
+            className="btn btn-primary w-full"
+            disabled={loading}
+          >
+            {loading
+              ? "Creating Account..."
+              : "Create Account"}
           </button>
-
         </form>
 
         <p className="text-center mt-4">

@@ -1,9 +1,17 @@
 import express from "express";
-import { createConversation } from "../controllers/conversationController.js";
+import {
+  createConversation,
+  getConversations,
+} from "../controllers/conversationController.js";
+
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Create or Get Conversation
-router.post("/", createConversation);
+// Get logged-in user's conversation list
+router.get("/", authMiddleware, getConversations);
+
+// Create or get conversation
+router.post("/", authMiddleware, createConversation);
 
 export default router;

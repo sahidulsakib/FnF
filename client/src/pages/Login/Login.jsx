@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
 import InputField from "../../components/common/InputField";
 import { loginUser } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
@@ -9,7 +11,7 @@ const Login = () => {
   const { loadUser } = useAuth();
 
   const [formData, setFormData] = useState({
-    email: "",
+    login: "",
     password: "",
   });
 
@@ -25,6 +27,11 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!formData.login || !formData.password) {
+      toast.error("Email/Phone and Password are required");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -33,20 +40,21 @@ const Login = () => {
       // Save JWT Token
       localStorage.setItem("token", res.data.token);
 
-      // Load logged in user into AuthContext
+      // Load Logged-in User
       await loadUser();
 
-      // Clear form
+      toast.success("Login Successful 🎉");
+
       setFormData({
-        email: "",
+        login: "",
         password: "",
       });
 
-      // Redirect to Home
       navigate("/");
-
     } catch (error) {
-      alert(error.response?.data?.message || "Login Failed");
+      toast.error(
+        error.response?.data?.message || "Login Failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -55,20 +63,25 @@ const Login = () => {
   return (
     <div className="card w-full max-w-md bg-base-100 shadow-2xl">
       <div className="card-body">
+
         <h2 className="text-3xl font-bold text-center">
           Welcome Back 👋
         </h2>
 
         <p className="text-center text-sm opacity-70 mb-4">
-          Login to continue
+          Login with Email or Phone
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+        >
+
           <InputField
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={formData.email}
+            type="text"
+            name="login"
+            placeholder="Email or Phone Number"
+            value={formData.login}
             onChange={handleChange}
           />
 
@@ -87,6 +100,7 @@ const Login = () => {
           >
             {loading ? "Logging in..." : "Login"}
           </button>
+
         </form>
 
         <p className="text-center mt-4">
@@ -98,6 +112,7 @@ const Login = () => {
             Register
           </Link>
         </p>
+
       </div>
     </div>
   );
