@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import InputField from "../../components/common/InputField";
-
+import { registerUser } from "../../services/authService";
 const Register = () => {
   const [formData, setFormData] = useState({
     name: "",
@@ -17,11 +17,34 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    console.log(formData);
-  };
+  if (formData.password !== formData.confirmPassword) {
+    alert("Passwords do not match");
+    return;
+  }
+
+  try {
+    const res = await registerUser({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+    });
+
+    alert(res.data.message);
+
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
+
+  } catch (error) {
+    alert(error.response?.data?.message || "Registration failed");
+  }
+};
 
   return (
     <div className="card w-full max-w-md bg-base-100 shadow-2xl">
