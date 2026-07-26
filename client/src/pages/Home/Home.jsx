@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -13,23 +18,100 @@ import ChatBox from "../../components/chat/ChatBox";
 
 import socket from "../../socket";
 
+// ==========================
+// Avatar Component
+// ==========================
+const UserAvatar = ({
+  profilePic,
+  name,
+  sizeClass = "h-14 w-14",
+  textClass = "text-xl",
+}) => {
+  const [imageError, setImageError] =
+    useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [profilePic]);
+
+  const firstLetter =
+    name?.trim()?.charAt(0)?.toUpperCase() ||
+    "U";
+
+  const showImage =
+    Boolean(profilePic?.trim()) &&
+    !imageError;
+
+  return (
+    <div
+      className={`${sizeClass} shrink-0 overflow-hidden rounded-full bg-base-300 shadow`}
+    >
+      {showImage ? (
+        <img
+          src={profilePic}
+          alt={name || "User"}
+          className="h-full w-full object-cover"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <div
+          className={`flex h-full w-full items-center justify-center font-bold ${textClass}`}
+        >
+          {firstLetter}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Home = () => {
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
 
-  const [chatUsers, setChatUsers] = useState([]);
-  const [conversationsLoading, setConversationsLoading] =
-    useState(true);
+  const {
+    user,
+    loading,
+    logout,
+  } = useAuth();
 
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [conversation, setConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [messagesLoading, setMessagesLoading] = useState(false);
+  const token =
+    localStorage.getItem("token");
 
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const [showChat, setShowChat] = useState(false);
+  const [chatUsers, setChatUsers] =
+    useState([]);
 
-  const token = localStorage.getItem("token");
+  const [
+    conversationsLoading,
+    setConversationsLoading,
+  ] = useState(true);
+
+  const [
+    selectedUser,
+    setSelectedUser,
+  ] = useState(null);
+
+  const [
+    conversation,
+    setConversation,
+  ] = useState(null);
+
+  const [messages, setMessages] =
+    useState([]);
+
+  const [
+    messagesLoading,
+    setMessagesLoading,
+  ] = useState(false);
+
+  const [
+    sendingMessage,
+    setSendingMessage,
+  ] = useState(false);
+
+  const [onlineUsers, setOnlineUsers] =
+    useState([]);
+
+  const [showChat, setShowChat] =
+    useState(false);
 
   // ==========================
   // Logout
@@ -42,31 +124,37 @@ const Home = () => {
   // ==========================
   // Fetch Conversation List
   // ==========================
-  const fetchConversations = useCallback(async () => {
-    if (!token) {
-      handleLogout();
-      return;
-    }
-
-    try {
-      setConversationsLoading(true);
-
-      const res = await getConversations(token);
-
-      setChatUsers(res.data.conversations || []);
-    } catch (error) {
-      console.error(
-        "Fetch conversations error:",
-        error.response?.data || error
-      );
-
-      if (error.response?.status === 401) {
+  const fetchConversations =
+    useCallback(async () => {
+      if (!token) {
         handleLogout();
+        return;
       }
-    } finally {
-      setConversationsLoading(false);
-    }
-  }, [token, handleLogout]);
+
+      try {
+        setConversationsLoading(true);
+
+        const res =
+          await getConversations(token);
+
+        setChatUsers(
+          res.data.conversations || []
+        );
+      } catch (error) {
+        console.error(
+          "Fetch conversations error:",
+          error.response?.data || error
+        );
+
+        if (
+          error.response?.status === 401
+        ) {
+          handleLogout();
+        }
+      } finally {
+        setConversationsLoading(false);
+      }
+    }, [token, handleLogout]);
 
   useEffect(() => {
     fetchConversations();
@@ -76,10 +164,9 @@ const Home = () => {
   // Register Socket User
   // ==========================
   useEffect(() => {
-    if (!user?._id) return;
+    if (!user?._id) return undefined;
 
     const registerSocketUser = () => {
-      console.log("✅ Connected:", socket.id);
       socket.emit("addUser", user._id);
     };
 
@@ -87,10 +174,16 @@ const Home = () => {
       registerSocketUser();
     }
 
-    socket.on("connect", registerSocketUser);
+    socket.on(
+      "connect",
+      registerSocketUser
+    );
 
     return () => {
-      socket.off("connect", registerSocketUser);
+      socket.off(
+        "connect",
+        registerSocketUser
+      );
     };
   }, [user?._id]);
 
@@ -98,36 +191,61 @@ const Home = () => {
   // Receive Message
   // ==========================
   useEffect(() => {
-    const handleReceiveMessage = (message) => {
+    const handleReceiveMessage = (
+      message
+    ) => {
       const incomingConversationId =
-        message.conversationId?._id ||
-        message.conversationId;
+        message?.conversationId?._id ||
+        message?.conversationId;
 
       const incomingSenderId =
-        message.sender?._id ||
-        message.sender;
+        message?.sender?._id ||
+        message?.sender;
+
+      const currentConversationId =
+        conversation?._id;
 
       const sameConversation =
-        conversation?._id &&
-        incomingConversationId?.toString() ===
-          conversation._id.toString();
+        currentConversationId &&
+        incomingConversationId &&
+        incomingConversationId.toString() ===
+          currentConversationId.toString();
 
       const firstMessageFromSelectedUser =
-        !conversation?._id &&
+        !currentConversationId &&
         selectedUser?._id &&
-        incomingSenderId?.toString() ===
+        incomingSenderId &&
+        incomingSenderId.toString() ===
           selectedUser._id.toString();
 
       if (
         sameConversation ||
         firstMessageFromSelectedUser
       ) {
-        setMessages((previousMessages) => [
-          ...previousMessages,
-          message,
-        ]);
+        setMessages(
+          (previousMessages) => {
+            const alreadyExists =
+              previousMessages.some(
+                (existingMessage) =>
+                  existingMessage._id ===
+                  message._id
+              );
 
-        if (!conversation?._id && incomingConversationId) {
+            if (alreadyExists) {
+              return previousMessages;
+            }
+
+            return [
+              ...previousMessages,
+              message,
+            ];
+          }
+        );
+
+        if (
+          !currentConversationId &&
+          incomingConversationId
+        ) {
           setConversation({
             _id: incomingConversationId,
           });
@@ -158,7 +276,9 @@ const Home = () => {
   // Online Users
   // ==========================
   useEffect(() => {
-    const handleOnlineUsers = (users) => {
+    const handleOnlineUsers = (
+      users
+    ) => {
       setOnlineUsers(users || []);
     };
 
@@ -179,40 +299,62 @@ const Home = () => {
   // Check Online Status
   // ==========================
   const isUserOnline = (userId) => {
-    return onlineUsers.some((onlineUser) => {
-      const onlineUserId =
-        onlineUser.userId ||
-        onlineUser._id ||
-        onlineUser;
+    if (!userId) return false;
 
-      return (
-        onlineUserId?.toString() ===
-        userId?.toString()
-      );
-    });
+    return onlineUsers.some(
+      (onlineUser) => {
+        const onlineUserId =
+          onlineUser?.userId ||
+          onlineUser?._id ||
+          onlineUser;
+
+        return (
+          onlineUserId?.toString() ===
+          userId.toString()
+        );
+      }
+    );
   };
 
   // ==========================
   // Select User From Search
-  // No conversation created here
+  // Conversation তৈরি হবে না
   // ==========================
-  const handleSelectUser = (receiver) => {
+  const handleSelectUser = (
+    receiver
+  ) => {
     if (!receiver?._id) return;
 
-    setSelectedUser(receiver);
+    const existingChat =
+      chatUsers.find(
+        (chatItem) =>
+          chatItem.user?._id?.toString() ===
+          receiver._id.toString()
+      );
 
-    // প্রথম message পাঠানোর আগে
-    // conversation থাকবে না
+    /*
+      Search result-এর user-এর সঙ্গে
+      আগে থেকেই conversation থাকলে
+      existing chat open করবে।
+    */
+    if (existingChat) {
+      handleSelectChat(existingChat);
+      return;
+    }
+
+    setSelectedUser(receiver);
     setConversation(null);
     setMessages([]);
-
+    setMessagesLoading(false);
     setShowChat(true);
   };
 
   // ==========================
   // Select Existing Chat
   // ==========================
-  const handleSelectChat = async (chatItem) => {
+  const handleSelectChat = async (
+    chatItem
+  ) => {
     if (
       !chatItem?._id ||
       !chatItem?.user?._id ||
@@ -226,24 +368,27 @@ const Home = () => {
 
       setSelectedUser(chatItem.user);
       setConversation(chatItem);
+      setMessages([]);
+      setShowChat(true);
 
-      const messageRes = await getMessages(
-        chatItem._id,
-        token
-      );
+      const messageRes =
+        await getMessages(
+          chatItem._id,
+          token
+        );
 
       setMessages(
         messageRes.data.messages || []
       );
-
-      setShowChat(true);
     } catch (error) {
       console.error(
         "Open chat error:",
         error.response?.data || error
       );
 
-      if (error.response?.status === 401) {
+      if (
+        error.response?.status === 401
+      ) {
         handleLogout();
       }
     } finally {
@@ -254,24 +399,30 @@ const Home = () => {
   // ==========================
   // Send Message
   // ==========================
-  const handleSendMessage = async (text) => {
-    const trimmedText = text?.trim();
+  const handleSendMessage = async (
+    text
+  ) => {
+    const trimmedText =
+      text?.trim();
 
     if (
       !trimmedText ||
       !selectedUser?._id ||
-      !token
+      !token ||
+      sendingMessage
     ) {
       return;
     }
 
     try {
+      setSendingMessage(true);
+
       const messageData = {
-        receiverId: selectedUser._id,
+        receiverId:
+          selectedUser._id,
         text: trimmedText,
       };
 
-      // Existing chat হলে conversationId যাবে
       if (conversation?._id) {
         messageData.conversationId =
           conversation._id;
@@ -282,29 +433,46 @@ const Home = () => {
         token
       );
 
-      const newMessage = res.data.message;
+      const newMessage =
+        res.data.message;
+
       const returnedConversation =
         res.data.conversation;
 
-      setMessages((previousMessages) => [
-        ...previousMessages,
-        newMessage,
-      ]);
+      setMessages(
+        (previousMessages) => {
+          const alreadyExists =
+            previousMessages.some(
+              (existingMessage) =>
+                existingMessage._id ===
+                newMessage._id
+            );
 
-      // প্রথম message পাঠানোর পরে
-      // backend conversation return করবে
-      if (returnedConversation?._id) {
+          if (alreadyExists) {
+            return previousMessages;
+          }
+
+          return [
+            ...previousMessages,
+            newMessage,
+          ];
+        }
+      );
+
+      if (
+        returnedConversation?._id
+      ) {
         setConversation(
           returnedConversation
         );
       }
 
       socket.emit("sendMessage", {
-        receiverId: selectedUser._id,
+        receiverId:
+          selectedUser._id,
         message: newMessage,
       });
 
-      // এখন user Chats list-এ যোগ হবে
       await fetchConversations();
     } catch (error) {
       console.error(
@@ -312,14 +480,26 @@ const Home = () => {
         error.response?.data || error
       );
 
-      if (error.response?.status === 401) {
+      if (
+        error.response?.status === 401
+      ) {
         handleLogout();
       }
+      throw error;
+    } finally {
+      setSendingMessage(false);
     }
   };
 
   // ==========================
-  // Loading
+  // Mobile Back Button
+  // ==========================
+  const handleBackToChats = () => {
+    setShowChat(false);
+  };
+
+  // ==========================
+  // Auth Loading
   // ==========================
   if (loading) {
     return (
@@ -330,181 +510,224 @@ const Home = () => {
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-6">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold md:text-3xl">
-            Welcome {user?.name} 👋
-          </h1>
-
-          <p className="opacity-70">
-            {user?.email || user?.phone}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-error btn-sm md:btn-md"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-      </div>
-
-      {/* Main Layout */}
-      <div className="grid items-start gap-6 md:grid-cols-2">
-        {/* Left Side */}
-        <div
-          className={
-            showChat
-              ? "hidden md:block"
-              : "block"
-          }
-        >
-          {/* Search */}
-          <div className="mb-6">
-            <h2 className="mb-3 text-xl font-semibold">
-              Search Users
-            </h2>
-
-            <SearchUser
-              token={token}
-              handleSelectUser={
-                handleSelectUser
+    <div className="min-h-screen bg-base-200">
+      <div className="mx-auto max-w-6xl p-4 md:p-6">
+        {/* Header */}
+        <header className="mb-6 rounded-2xl bg-base-100 p-3 shadow-sm md:mb-8 md:p-4">
+          <div className="flex items-center justify-between gap-3">
+            {/* Clickable Profile */}
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/profile")
               }
-            />
-          </div>
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2 text-left transition hover:bg-base-200"
+            >
+              <UserAvatar
+                profilePic={
+                  user?.profilePic
+                }
+                name={user?.name}
+                sizeClass="h-12 w-12 md:h-14 md:w-14"
+                textClass="text-lg md:text-xl"
+              />
 
-          {/* Chats List */}
-          <div>
-            <h2 className="mb-4 text-2xl font-semibold">
-              Chats
-            </h2>
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-bold md:text-2xl">
+                  {user?.name ||
+                    "User"}
+                </h1>
 
-            {conversationsLoading ? (
-              <div className="flex justify-center py-8">
-                <span className="loading loading-spinner loading-md" />
+                <p className="truncate text-xs opacity-60 md:text-sm">
+                  {user?.email ||
+                    user?.phone ||
+                    "View profile"}
+                </p>
               </div>
-            ) : chatUsers.length === 0 ? (
-              <div className="rounded-xl bg-base-200 p-6 text-center opacity-70">
-                No conversations yet.
-                <br />
-                Search for a user and send a
-                message.
+            </button>
+
+            {/* Header Actions */}
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm hidden sm:inline-flex"
+                onClick={() =>
+                  navigate("/profile")
+                }
+              >
+                Profile
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-error btn-sm"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Layout */}
+        <main className="grid items-start gap-6 md:grid-cols-2">
+          {/* Left Side */}
+          <section
+            className={
+              showChat
+                ? "hidden md:block"
+                : "block"
+            }
+          >
+            <div className="rounded-2xl bg-base-100 p-4 shadow-sm md:p-5">
+              {/* Search */}
+              <div className="mb-7">
+                <h2 className="mb-3 text-xl font-semibold">
+                  Search Users
+                </h2>
+
+                <SearchUser
+                  token={token}
+                  handleSelectUser={
+                    handleSelectUser
+                  }
+                />
+              </div>
+
+              {/* Chats List */}
+              <div>
+                <h2 className="mb-4 text-2xl font-semibold">
+                  Chats
+                </h2>
+
+                {conversationsLoading ? (
+                  <div className="flex justify-center py-10">
+                    <span className="loading loading-spinner loading-md" />
+                  </div>
+                ) : chatUsers.length ===
+                  0 ? (
+                  <div className="rounded-xl bg-base-200 p-6 text-center opacity-70">
+                    No conversations yet.
+                    <br />
+                    Search for a user and
+                    send a message.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {chatUsers.map(
+                      (chatItem) => {
+                        const chatUser =
+                          chatItem.user;
+
+                        if (!chatUser) {
+                          return null;
+                        }
+
+                        const online =
+                          isUserOnline(
+                            chatUser._id
+                          );
+
+                        const isSelected =
+                          conversation?._id
+                            ?.toString() ===
+                          chatItem._id?.toString();
+
+                        return (
+                          <button
+                            key={
+                              chatItem._id
+                            }
+                            type="button"
+                            onClick={() =>
+                              handleSelectChat(
+                                chatItem
+                              )
+                            }
+                            className={`flex w-full items-center gap-4 rounded-xl border p-3 text-left transition md:p-4 ${
+                              isSelected
+                                ? "border-primary bg-primary/10"
+                                : "border-transparent bg-base-100 hover:bg-base-200"
+                            }`}
+                          >
+                            {/* Chat Avatar */}
+                            <div className="relative shrink-0">
+                              <UserAvatar
+                                profilePic={
+                                  chatUser.profilePic
+                                }
+                                name={
+                                  chatUser.name
+                                }
+                              />
+
+                              {online && (
+                                <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-base-100 bg-success" />
+                              )}
+                            </div>
+
+                            {/* Chat Information */}
+                            <div className="min-w-0 flex-1">
+                              <h3 className="truncate text-base font-semibold md:text-lg">
+                                {
+                                  chatUser.name
+                                }
+                              </h3>
+
+                              <p
+                                className={`text-sm ${
+                                  online
+                                    ? "text-success"
+                                    : "opacity-60"
+                                }`}
+                              >
+                                {online
+                                  ? "Online"
+                                  : "Offline"}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Right Side / Chat */}
+          <section
+            className={
+              showChat
+                ? "block"
+                : "hidden md:block"
+            }
+          >
+            {messagesLoading ? (
+              <div className="flex min-h-[500px] items-center justify-center rounded-2xl bg-base-100 shadow-sm">
+                <span className="loading loading-spinner loading-lg" />
               </div>
             ) : (
-              <div className="space-y-3">
-                {chatUsers.map((chatItem) => {
-                  const chatUser =
-                    chatItem.user;
-
-                  if (!chatUser) return null;
-
-                  const online =
-                    isUserOnline(
-                      chatUser._id
-                    );
-
-                  const isSelected =
-                    conversation?._id ===
-                    chatItem._id;
-
-                  return (
-                    <button
-                      key={chatItem._id}
-                      type="button"
-                      onClick={() =>
-                        handleSelectChat(
-                          chatItem
-                        )
-                      }
-                      className={`flex w-full items-center gap-4 rounded-xl p-4 text-left shadow transition hover:bg-base-200 ${
-                        isSelected
-                          ? "bg-base-200"
-                          : "bg-base-100"
-                      }`}
-                    >
-                      {/* Profile Picture */}
-                      <div className="avatar">
-                        <div className="relative h-14 w-14 overflow-hidden rounded-full bg-base-300">
-                          {chatUser.profilePic ? (
-                            <img
-                              src={
-                                chatUser.profilePic
-                              }
-                              alt={
-                                chatUser.name
-                              }
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-xl font-bold">
-                              {chatUser.name
-                                ?.charAt(0)
-                                .toUpperCase() ||
-                                "U"}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* User Information */}
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-lg font-semibold">
-                          {chatUser.name}
-                        </h3>
-
-                        <p
-                          className={`text-sm ${
-                            online
-                              ? "text-success"
-                              : "opacity-60"
-                          }`}
-                        >
-                          {online
-                            ? "Online"
-                            : "Offline"}
-                        </p>
-                      </div>
-
-                      {online && (
-                        <span className="h-3 w-3 rounded-full bg-success" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <ChatBox
+                user={user}
+                selectedUser={
+                  selectedUser
+                }
+                messages={messages}
+                handleSendMessage={
+                  handleSendMessage
+                }
+                sendingMessage={
+                  sendingMessage
+                }
+                onBack={
+                  handleBackToChats
+                }
+              />
             )}
-          </div>
-        </div>
-
-        {/* Right Side */}
-        <div
-          className={
-            showChat
-              ? "block"
-              : "hidden md:block"
-          }
-        >
-          {messagesLoading ? (
-            <div className="flex min-h-[500px] items-center justify-center rounded-xl bg-base-200">
-              <span className="loading loading-spinner loading-lg" />
-            </div>
-          ) : (
-            <ChatBox
-              user={user}
-              selectedUser={selectedUser}
-              messages={messages}
-              handleSendMessage={
-                handleSendMessage
-              }
-              onBack={() =>
-                setShowChat(false)
-              }
-            />
-          )}
-        </div>
+          </section>
+        </main>
       </div>
     </div>
   );

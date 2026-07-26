@@ -1,36 +1,103 @@
-import { useState } from "react";
+import {
+  useRef,
+  useState,
+} from "react";
 
-const MessageInput = ({ handleSendMessage }) => {
+const MessageInput = ({
+  handleSendMessage,
+  sendingMessage = false,
+}) => {
   const [text, setText] = useState("");
+  const textareaRef = useRef(null);
 
-  const onSubmit = (e) => {
-    e.preventDefault();
+  // ==========================
+  // Submit Message
+  // ==========================
+  const onSubmit = async (event) => {
+    event.preventDefault();
 
-    if (!text.trim()) return;
+    const trimmedText = text.trim();
 
-    handleSendMessage(text);
+    if (
+      !trimmedText ||
+      sendingMessage
+    ) {
+      return;
+    }
 
-    setText("");
+    try {
+      await handleSendMessage(
+        trimmedText
+      );
+
+      setText("");
+
+      textareaRef.current?.focus();
+    } catch (error) {
+      console.error(
+        "Message submit error:",
+        error
+      );
+    }
+  };
+
+  // ==========================
+  // Enter / Shift + Enter
+  // ==========================
+  const handleKeyDown = (event) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+
+      if (
+        text.trim() &&
+        !sendingMessage
+      ) {
+        onSubmit(event);
+      }
+    }
   };
 
   return (
     <form
       onSubmit={onSubmit}
-      className="flex gap-2 mt-4"
+      className="flex items-end gap-2"
     >
-      <input
-        type="text"
+      <textarea
+        ref={textareaRef}
+        name="message"
+        rows={1}
         placeholder="Type a message..."
-        className="input input-bordered flex-1"
+        className="textarea textarea-bordered min-h-12 max-h-32 flex-1 resize-none"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(event) =>
+          setText(event.target.value)
+        }
+        onKeyDown={handleKeyDown}
+        disabled={sendingMessage}
+        maxLength={2000}
       />
 
       <button
         type="submit"
-        className="btn btn-primary"
+        className="btn btn-primary min-h-12"
+        disabled={
+          sendingMessage ||
+          !text.trim()
+        }
       >
-        Send
+        {sendingMessage ? (
+          <>
+            <span className="loading loading-spinner loading-sm" />
+            <span className="hidden sm:inline">
+              Sending
+            </span>
+          </>
+        ) : (
+          "Send"
+        )}
       </button>
     </form>
   );

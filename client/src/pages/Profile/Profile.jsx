@@ -11,7 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+ const { logout, updateUser } = useAuth();
 
   const token = localStorage.getItem("token");
 
@@ -123,7 +123,9 @@ const Profile = () => {
       const updatedUser = res.data.user;
 
       if (updatedUser) {
-        setEmail(updatedUser.email || "");
+  updateUser(updatedUser);
+
+  setEmail(updatedUser.email || "");
 
         setFormData({
           name: updatedUser.name || "",
